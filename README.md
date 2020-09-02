@@ -1,5 +1,8 @@
 # Dask-Optuna
 
+[![Tests](https://github.com/jrbourbeau/dask-optuna/workflows/Tests/badge.svg)](https://github.com/jrbourbeau/dask-optuna/actions?query=workflow%3ATests+branch%3Amaster)
+[![Pre-commit](https://github.com/jrbourbeau/dask-optuna/workflows/Pre-commit/badge.svg)](https://github.com/jrbourbeau/dask-optuna/actions?query=workflow%3APre-commit+branch%3Amaster)
+
 Dask-Optuna helps improve integration between [Optuna](https://optuna.org/) and [Dask](https://dask.org/). 
 
 🚨🚨This project is actively being developed and is not yet ready for general use. Please do not use it. 🚨🚨
