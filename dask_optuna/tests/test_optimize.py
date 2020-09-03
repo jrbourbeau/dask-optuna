@@ -24,7 +24,10 @@ def test_optimize_sync(processes):
     with Client(processes=processes):
         study = optuna.create_study(storage=dask_optuna.DaskStorage())
         dask_optuna.optimize(
-            study, objective, n_trials=10, batch_size=5,
+            study,
+            objective,
+            n_trials=10,
+            batch_size=5,
         )
         assert len(study.trials) == 10
 
@@ -34,7 +37,10 @@ def test_storage_raises(c, s, a, b):
     with pytest.raises(TypeError) as excinfo:
         study = optuna.create_study()
         dask_optuna.optimize(
-            study, objective, n_trials=10, batch_size=5,
+            study,
+            objective,
+            n_trials=10,
+            batch_size=5,
         )
 
     output = str(excinfo.value)

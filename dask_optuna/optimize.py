@@ -32,7 +32,7 @@ def optimize(
     batch_size: int = None,
     client: Client = None,
 ) -> None:
-    """ Optimize an objective function
+    """Optimize an objective function
 
     Trials are batched and each batch is run in parllel on a Dask cluster.
 
