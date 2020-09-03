@@ -22,6 +22,6 @@ with dask.distributed.Client() as client:
     # Create a study using Dask-compatible storage
     study = optuna.create_study(storage=dask_optuna.DaskStorage())
     # Optimize in parallel on your Dask cluster
-    dask_optuna.optimize(study, objective, n_trials=100)
+    dask_optuna.optimize(study, objective, n_trials=100, batch_size=10)
     print(f"best_params = {study.best_params}")
 ```
