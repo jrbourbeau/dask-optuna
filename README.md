@@ -11,29 +11,17 @@ Dask-Optuna helps improve integration between [Optuna](https://optuna.org/) and 
 
 ```python
 import optuna
-from dask.distributed import Client, wait
+import dask.distributed
 import dask_optuna
-
 
 def objective(trial):
     x = trial.suggest_uniform("x", -10, 10)
     return (x - 2) ** 2
 
-
-def _optimize(storage=None):
-    dask_storage = dask_optuna.DaskStorage(storage=storage)
-    study = optuna.load_study(study_name="foo", storage=dask_storage)
-    study.optimize(objective, n_trials=10)
-
-
-with Client() as client:
-    dask_storage = dask_optuna.DaskStorage()
-    study = optuna.create_study(
-        study_name="foo", storage=dask_storage, load_if_exists=True
-    )
-    futures = [client.submit(_optimize, pure=False) for _ in range(10)]
-    wait(futures)
-
-    study = optuna.load_study(study_name="foo", storage=dask_storage)
-    print(f"study = {study}")
+with dask.distributed.Client() as client:
+    # Create a study using Dask-compatible storage
+    study = optuna.create_study(storage=dask_optuna.DaskStorage())
+    # Optimize in parallel on your Dask cluster
+    dask_optuna.optimize(study, objective, n_trials=100, batch_size=10)
+    print(f"best_params = {study.best_params}")
 ```
