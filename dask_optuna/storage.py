@@ -92,6 +92,8 @@ class OptunaSchedulerExtension:
     def set_study_direction(
         self, comm, study_id: int, direction: study.StudyDirection, storage: str = None
     ) -> None:
+        if isinstance(direction, dict):
+            direction = getattr(study.StudyDirection, direction["name"])
         return self.get_storage(storage).set_study_direction(
             study_id=study_id,
             direction=direction,

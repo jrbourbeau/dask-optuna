@@ -20,16 +20,18 @@ def objective(trial):
 
 
 @pytest.mark.parametrize("processes", [True, False])
-def test_optimize_sync(processes):
+def test_optimize_sync(processes, tmp_path):
     with Client(processes=processes):
-        study = optuna.create_study(storage=dask_optuna.DaskStorage())
-        dask_optuna.optimize(
-            study,
-            objective,
-            n_trials=10,
-            batch_size=5,
-        )
-        assert len(study.trials) == 10
+        for storage in [None, "sqlite:///" + str(tmp_path / "example.db")]:
+            dask_storage = dask_optuna.DaskStorage(storage=storage)
+            study = optuna.create_study(storage=dask_storage)
+            dask_optuna.optimize(
+                study,
+                objective,
+                n_trials=10,
+                batch_size=5,
+            )
+            assert len(study.trials) == 10
 
 
 @gen_cluster(client=True)

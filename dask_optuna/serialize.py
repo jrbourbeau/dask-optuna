@@ -49,7 +49,6 @@ def serialize_studysummary(summary):
     data["best_trial"] = serialize_frozentrial(data["best_trial"])
     data["datetime_start"] = serialize_datetime(data["datetime_start"])
     data["direction"] = data["direction"]["name"]
-    # data["direction"] = data["direction"].name
     return data
 
 
