@@ -8,8 +8,8 @@ from .storage import DaskStorage
 ObjectiveFuncType = Callable[[optuna.Trial], float]
 
 
-def _optimize_batch(study_name, objective, storage_name=None, n_trials=None):
-    dask_storage = DaskStorage(storage=storage_name)
+def _optimize_batch(study_name, objective, storage=None, name=None, n_trials=None):
+    dask_storage = DaskStorage(storage=storage, name=name)
     study = optuna.load_study(study_name=study_name, storage=dask_storage)
     study.optimize(objective, n_trials=n_trials)
 
@@ -52,20 +52,19 @@ def optimize(
     """
 
     client = client or default_client()
-    storage = study._storage
-    if not isinstance(storage, DaskStorage):
+    dask_storage = study._storage
+    if not isinstance(dask_storage, DaskStorage):
         raise TypeError(
-            f"Expected storage to be of type dask_optuna.DaskStorage but got {type(storage)} instead"
+            f"Expected storage to be of type dask_optuna.DaskStorage but got {type(dask_storage)} instead"
         )
-    storage_name = storage.storage
-    study_name = study.study_name
 
     futures = [
         client.submit(
             _optimize_batch,
-            study_name=study_name,
+            study_name=study.study_name,
             objective=func,
-            storage_name=storage_name,
+            storage=dask_storage.storage,
+            name=dask_storage.name,
             n_trials=n,
             pure=False,
         )

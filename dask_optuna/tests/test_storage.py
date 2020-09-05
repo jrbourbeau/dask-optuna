@@ -15,8 +15,8 @@ def objective(trial):
     return (x - 2) ** 2
 
 
-def _optimize(storage):
-    dask_storage = dask_optuna.DaskStorage(storage=storage)
+def _optimize(storage, name):
+    dask_storage = dask_optuna.DaskStorage(storage=storage, name=name)
     study = optuna.create_study(
         study_name="foo", storage=dask_storage, load_if_exists=True
     )
@@ -27,7 +27,12 @@ def _optimize(storage):
 async def test_in_memory(c, s, a, b):
     storage = None
     dask_storage = dask_optuna.DaskStorage(storage=storage)
-    futures = [c.submit(_optimize, storage=storage, pure=False) for _ in range(5)]
+    futures = [
+        c.submit(
+            _optimize, storage=dask_storage.storage, name=dask_storage.name, pure=False
+        )
+        for _ in range(5)
+    ]
     await wait(futures)
     await futures[0]
 
@@ -43,7 +48,15 @@ async def test_sqlite(c, s, a, b):
         storage = "sqlite:///" + os.path.join(tmpdirname, "example.db")
 
         dask_storage = dask_optuna.DaskStorage(storage=storage)
-        futures = [c.submit(_optimize, storage=storage, pure=False) for _ in range(5)]
+        futures = [
+            c.submit(
+                _optimize,
+                storage=dask_storage.storage,
+                name=dask_storage.name,
+                pure=False,
+            )
+            for _ in range(5)
+        ]
         await wait(futures)
         await futures[0]
 
