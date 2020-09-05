@@ -26,7 +26,7 @@ def _optimize(storage, name):
 @gen_cluster(client=True)
 async def test_in_memory(c, s, a, b):
     storage = None
-    dask_storage = dask_optuna.DaskStorage(storage=storage)
+    dask_storage = await dask_optuna.DaskStorage(storage=storage)
     futures = [
         c.submit(
             _optimize, storage=dask_storage.storage, name=dask_storage.name, pure=False
@@ -47,7 +47,7 @@ async def test_sqlite(c, s, a, b):
     with tempfile.TemporaryDirectory() as tmpdirname:
         storage = "sqlite:///" + os.path.join(tmpdirname, "example.db")
 
-        dask_storage = dask_optuna.DaskStorage(storage=storage)
+        dask_storage = await dask_optuna.DaskStorage(storage=storage)
         futures = [
             c.submit(
                 _optimize,
@@ -63,3 +63,23 @@ async def test_sqlite(c, s, a, b):
         results = await dask_storage.get_all_study_summaries()
         assert len(results) == 1
         assert results[0].n_trials == 10
+
+
+@gen_cluster(client=True)
+async def test_daskstorage_registers_extension(c, s, a, b):
+    assert "optuna" not in s.extensions
+    await dask_optuna.DaskStorage()
+    assert "optuna" in s.extensions
+    assert isinstance(s.extensions["optuna"], dask_optuna.OptunaSchedulerExtension)
+
+
+@gen_cluster(client=True)
+async def test_name(c, s, a, b):
+    await dask_optuna.DaskStorage(name="foo")
+    ext = s.extensions["optuna"]
+    assert len(ext.storages) == 1
+    assert isinstance(ext.storages["foo"], optuna.storages.InMemoryStorage)
+
+    await dask_optuna.DaskStorage(name="bar")
+    assert len(ext.storages) == 2
+    assert isinstance(ext.storages["bar"], optuna.storages.InMemoryStorage)

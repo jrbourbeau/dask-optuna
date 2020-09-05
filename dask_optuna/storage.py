@@ -1,3 +1,4 @@
+import asyncio
 from typing import Any, Dict, List, Optional
 import uuid
 
@@ -305,11 +306,21 @@ class DaskStorage(optuna.storages.BaseStorage):
                 )
                 return self
 
-            self.client.loop.add_callback(_register)
+            self._started = asyncio.ensure_future(_register())
         else:
             self.client.run_on_scheduler(
                 register_with_scheduler, storage=self.storage, name=self.name
             )
+
+    def __await__(self):
+        if hasattr(self, "_started"):
+            return self._started.__await__()
+        else:
+
+            async def _():
+                return self
+
+            return _().__await__()
 
     def create_new_study(self, study_name: Optional[str] = None) -> int:
         return self.client.sync(
