@@ -83,3 +83,10 @@ async def test_name(c, s, a, b):
     await dask_optuna.DaskStorage(name="bar")
     assert len(ext.storages) == 2
     assert isinstance(ext.storages["bar"], optuna.storages.InMemoryStorage)
+
+
+@gen_cluster(client=True)
+async def test_name_unique(c, s, a, b):
+    s1 = await dask_optuna.DaskStorage()
+    s2 = await dask_optuna.DaskStorage()
+    assert s1.name != s2.name
