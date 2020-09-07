@@ -1,4 +1,6 @@
+import asyncio
 from typing import Any, Dict, List, Optional
+import uuid
 
 import optuna
 from optuna.distributions import (
@@ -58,75 +60,85 @@ class OptunaSchedulerExtension:
 
         self.scheduler.extensions["optuna"] = self
 
-    def get_storage(self, storage):
-        try:
-            return self.storages[storage]
-        except KeyError:
-            self.storages[storage] = optuna.storages.get_storage(storage)
-            return self.storages[storage]
+    def get_storage(self, name):
+        return self.storages[name]
 
     def create_new_study(
-        self, comm, study_name: Optional[str] = None, storage: str = None
+        self, comm, study_name: Optional[str] = None, storage_name: str = None
     ) -> int:
-        return self.get_storage(storage).create_new_study(study_name=study_name)
+        return self.get_storage(storage_name).create_new_study(study_name=study_name)
 
-    def delete_study(self, comm, study_id: int = None, storage: str = None) -> None:
-        return self.get_storage(storage).delete_study(study_id=study_id)
+    def delete_study(
+        self, comm, study_id: int = None, storage_name: str = None
+    ) -> None:
+        return self.get_storage(storage_name).delete_study(study_id=study_id)
 
     def set_study_user_attr(
-        self, comm, study_id: int, key: str, value: Any, storage: str = None
+        self, comm, study_id: int, key: str, value: Any, storage_name: str = None
     ) -> None:
-        return self.get_storage(storage).set_study_user_attr(
+        return self.get_storage(storage_name).set_study_user_attr(
             study_id=study_id, key=key, value=value
         )
 
     def set_study_system_attr(
-        self, comm, study_id: int, key: str, value: Any, storage: str = None
+        self, comm, study_id: int, key: str, value: Any, storage_name: str = None
     ) -> None:
-        return self.get_storage(storage).set_study_system_attr(
+        return self.get_storage(storage_name).set_study_system_attr(
             study_id=study_id,
             key=key,
             value=value,
         )
 
     def set_study_direction(
-        self, comm, study_id: int, direction: study.StudyDirection, storage: str = None
+        self,
+        comm,
+        study_id: int,
+        direction: study.StudyDirection,
+        storage_name: str = None,
     ) -> None:
-        return self.get_storage(storage).set_study_direction(
+        return self.get_storage(storage_name).set_study_direction(
             study_id=study_id,
             direction=direction,
         )
 
-    def get_study_id_from_name(self, comm, study_name: str, storage: str = None) -> int:
-        return self.get_storage(storage).get_study_id_from_name(study_name=study_name)
+    def get_study_id_from_name(
+        self, comm, study_name: str, storage_name: str = None
+    ) -> int:
+        return self.get_storage(storage_name).get_study_id_from_name(
+            study_name=study_name
+        )
 
     def get_study_id_from_trial_id(
-        self, comm, trial_id: int, storage: str = None
+        self, comm, trial_id: int, storage_name: str = None
     ) -> int:
-        return self.get_storage(storage).get_study_id_from_trial_id(trial_id=trial_id)
+        return self.get_storage(storage_name).get_study_id_from_trial_id(
+            trial_id=trial_id
+        )
 
-    def get_study_name_from_id(self, comm, study_id: int, storage: str = None) -> str:
-        return self.get_storage(storage).get_study_name_from_id(study_id=study_id)
+    def get_study_name_from_id(
+        self, comm, study_id: int, storage_name: str = None
+    ) -> str:
+        return self.get_storage(storage_name).get_study_name_from_id(study_id=study_id)
 
     def get_study_direction(
-        self, comm, study_id: int, storage: str = None
+        self, comm, study_id: int, storage_name: str = None
     ) -> study.StudyDirection:
-        return self.get_storage(storage).get_study_direction(study_id=study_id)
+        return self.get_storage(storage_name).get_study_direction(study_id=study_id)
 
     def get_study_user_attrs(
-        self, comm, study_id: int, storage: str = None
+        self, comm, study_id: int, storage_name: str = None
     ) -> Dict[str, Any]:
-        return self.get_storage(storage).get_study_user_attrs(study_id=study_id)
+        return self.get_storage(storage_name).get_study_user_attrs(study_id=study_id)
 
     def get_study_system_attrs(
-        self, comm, study_id: int, storage: str = None
+        self, comm, study_id: int, storage_name: str = None
     ) -> Dict[str, Any]:
-        return self.get_storage(storage).get_study_system_attrs(study_id=study_id)
+        return self.get_storage(storage_name).get_study_system_attrs(study_id=study_id)
 
     def get_all_study_summaries(
-        self, comm, storage: str = None
+        self, comm, storage_name: str = None
     ) -> List[study.StudySummary]:
-        summaries = self.get_storage(storage).get_all_study_summaries()
+        summaries = self.get_storage(storage_name).get_all_study_summaries()
         return [serialize_studysummary(s) for s in summaries]
 
     def create_new_trial(
@@ -134,17 +146,17 @@ class OptunaSchedulerExtension:
         comm,
         study_id: int,
         template_trial: Optional[FrozenTrial] = None,
-        storage: str = None,
+        storage_name: str = None,
     ) -> int:
-        return self.get_storage(storage).create_new_trial(
+        return self.get_storage(storage_name).create_new_trial(
             study_id=study_id,
             template_trial=template_trial,
         )
 
     def set_trial_state(
-        self, comm, trial_id: int, state: TrialState, storage: str = None
+        self, comm, trial_id: int, state: TrialState, storage_name: str = None
     ) -> bool:
-        return self.get_storage(storage).set_trial_state(
+        return self.get_storage(storage_name).set_trial_state(
             trial_id=trial_id,
             state=getattr(TrialState, state),
         )
@@ -156,31 +168,35 @@ class OptunaSchedulerExtension:
         param_name: str,
         param_value_internal: float,
         distribution: BaseDistribution,
-        storage: str = None,
+        storage_name: str = None,
     ) -> None:
         distribution = json_to_distribution(distribution)
-        return self.get_storage(storage).set_trial_param(
+        return self.get_storage(storage_name).set_trial_param(
             trial_id=trial_id,
             param_name=param_name,
             param_value_internal=param_value_internal,
             distribution=distribution,
         )
 
-    def get_trial_number_from_id(self, comm, trial_id: int, storage: str = None) -> int:
-        return self.get_storage(storage).get_trial_number_from_id(trial_id=trial_id)
+    def get_trial_number_from_id(
+        self, comm, trial_id: int, storage_name: str = None
+    ) -> int:
+        return self.get_storage(storage_name).get_trial_number_from_id(
+            trial_id=trial_id
+        )
 
     def get_trial_param(
-        self, comm, trial_id: int, param_name: str, storage: str = None
+        self, comm, trial_id: int, param_name: str, storage_name: str = None
     ) -> float:
-        return self.get_storage(storage).get_trial_param(
+        return self.get_storage(storage_name).get_trial_param(
             trial_id=trial_id,
             param_name=param_name,
         )
 
     def set_trial_value(
-        self, comm, trial_id: int, value: float, storage: str = None
+        self, comm, trial_id: int, value: float, storage_name: str = None
     ) -> None:
-        return self.get_storage(storage).set_trial_value(
+        return self.get_storage(storage_name).set_trial_value(
             trial_id=trial_id,
             value=value,
         )
@@ -191,40 +207,40 @@ class OptunaSchedulerExtension:
         trial_id: int,
         step: int,
         intermediate_value: float,
-        storage: str = None,
+        storage_name: str = None,
     ) -> None:
-        return self.get_storage(storage).set_trial_intermediate_value(
+        return self.get_storage(storage_name).set_trial_intermediate_value(
             trial_id=trial_id,
             step=step,
             intermediate_value=intermediate_value,
         )
 
     def set_trial_user_attr(
-        self, comm, trial_id: int, key: str, value: Any, storage: str = None
+        self, comm, trial_id: int, key: str, value: Any, storage_name: str = None
     ) -> None:
-        return self.get_storage(storage).set_trial_user_attr(
+        return self.get_storage(storage_name).set_trial_user_attr(
             trial_id=trial_id,
             key=key,
             value=value,
         )
 
     def set_trial_system_attr(
-        self, comm, trial_id: int, key: str, value: Any, storage: str = None
+        self, comm, trial_id: int, key: str, value: Any, storage_name: str = None
     ) -> None:
-        return self.get_storage(storage).set_trial_system_attr(
+        return self.get_storage(storage_name).set_trial_system_attr(
             trial_id=trial_id,
             key=key,
             value=value,
         )
 
-    def get_trial(self, comm, trial_id: int, storage: str = None) -> FrozenTrial:
-        trial = self.get_storage(storage).get_trial(trial_id=trial_id)
+    def get_trial(self, comm, trial_id: int, storage_name: str = None) -> FrozenTrial:
+        trial = self.get_storage(storage_name).get_trial(trial_id=trial_id)
         return serialize_frozentrial(trial)
 
     def get_all_trials(
-        self, comm, study_id: int, deepcopy: bool = True, storage: str = None
+        self, comm, study_id: int, deepcopy: bool = True, storage_name: str = None
     ) -> List[FrozenTrial]:
-        trials = self.get_storage(storage).get_all_trials(
+        trials = self.get_storage(storage_name).get_all_trials(
             study_id=study_id,
             deepcopy=deepcopy,
         )
@@ -235,15 +251,15 @@ class OptunaSchedulerExtension:
         comm,
         study_id: int,
         state: Optional[TrialState] = None,
-        storage: str = None,
+        storage_name: str = None,
     ) -> int:
-        return self.get_storage(storage).get_n_trials(
+        return self.get_storage(storage_name).get_n_trials(
             study_id=study_id,
             state=state,
         )
 
     def read_trials_from_remote_storage(
-        self, comm, study_id: int, storage: str = None
+        self, comm, study_id: int, storage_name: str = None
     ) -> None:
         """Make an internal cache of trials up-to-date.
         Args:
@@ -253,53 +269,71 @@ class OptunaSchedulerExtension:
             :exc:`KeyError`:
                 If no study with the matching ``study_id`` exists.
         """
-        return self.get_storage(storage).read_trials_from_remote_storage(
+        return self.get_storage(storage_name).read_trials_from_remote_storage(
             study_id=study_id
         )
 
 
-def register_with_scheduler(dask_scheduler):
+def register_with_scheduler(dask_scheduler=None, storage=None, name=None):
     if "optuna" not in dask_scheduler.extensions:
-        OptunaSchedulerExtension(dask_scheduler)
+        ext = OptunaSchedulerExtension(dask_scheduler)
+    else:
+        ext = dask_scheduler.extensions["optuna"]
+
+    if name not in ext.storages:
+        ext.storages[name] = optuna.storages.get_storage(storage)
 
 
 class DaskStorage(optuna.storages.BaseStorage):
     """ Implements Optuna Storage API """
 
-    def __init__(self, client=None, storage=None):
+    def __init__(self, storage=None, name=None, client=None):
+        self.storage = storage
+        self.name = name or f"dask-storage-{uuid.uuid4().hex}"
         try:
             self.client = client or Client.current()
         except ValueError:
             # Initialise new client
             self.client = get_worker().client
-        self.storage = storage
 
         if self.client.asynchronous or getattr(
             thread_state, "on_event_loop_thread", False
         ):
 
             async def _register():
-                await self.client.run_on_scheduler(register_with_scheduler)
+                await self.client.run_on_scheduler(
+                    register_with_scheduler, storage=self.storage, name=self.name
+                )
+                return self
 
-            self.client.loop.add_callback(_register)
+            self._started = asyncio.ensure_future(_register())
         else:
-            self.client.run_on_scheduler(register_with_scheduler)
+            self.client.run_on_scheduler(
+                register_with_scheduler, storage=self.storage, name=self.name
+            )
 
-    async def _register_with_scheduler(self):
-        self.client.run_on_scheduler(register_with_scheduler)
+    def __await__(self):
+        if hasattr(self, "_started"):
+            return self._started.__await__()
+        else:
+
+            async def _():
+                return self
+
+            return _().__await__()
 
     def create_new_study(self, study_name: Optional[str] = None) -> int:
         return self.client.sync(
             self.client.scheduler.optuna_create_new_study,
             study_name=study_name,
-            storage=self.storage,
+            storage_name=self.name,
         )
 
     def delete_study(self, study_id: int) -> None:
         return self.client.sync(
             self.client.scheduler.optuna_delete_study,
             study_id=study_id,
-            storage=self.storage,
+            storage_name=self.name,
         )
 
     def set_study_user_attr(self, study_id: int, key: str, value: Any) -> None:
@@ -308,7 +342,7 @@ class DaskStorage(optuna.storages.BaseStorage):
             study_id=study_id,
             key=key,
             value=value,
-            storage=self.storage,
+            storage_name=self.name,
         )
 
     def set_study_system_attr(self, study_id: int, key: str, value: Any) -> None:
@@ -333,7 +367,7 @@ class DaskStorage(optuna.storages.BaseStorage):
             study_id=study_id,
             key=key,
             value=value,
-            storage=self.storage,
+            storage_name=self.name,
         )
 
     def set_study_direction(
@@ -359,7 +393,7 @@ class DaskStorage(optuna.storages.BaseStorage):
             self.client.scheduler.optuna_set_study_direction,
             study_id=study_id,
             direction=direction,
-            storage=self.storage,
+            storage_name=self.name,
         )
 
     # Basic study access
@@ -381,7 +415,7 @@ class DaskStorage(optuna.storages.BaseStorage):
         return self.client.sync(
             self.client.scheduler.optuna_get_study_id_from_name,
             study_name=study_name,
-            storage=self.storage,
+            storage_name=self.name,
         )
 
     def get_study_id_from_trial_id(self, trial_id: int) -> int:
@@ -401,7 +435,7 @@ class DaskStorage(optuna.storages.BaseStorage):
         return self.client.sync(
             self.client.scheduler.optuna_get_study_id_from_trial_id,
             trial_id=trial_id,
-            storage=self.storage,
+            storage_name=self.name,
         )
 
     def get_study_name_from_id(self, study_id: int) -> str:
@@ -421,7 +455,7 @@ class DaskStorage(optuna.storages.BaseStorage):
         return self.client.sync(
             self.client.scheduler.optuna_get_study_name_from_id,
             study_id=study_id,
-            storage=self.storage,
+            storage_name=self.name,
         )
 
     def get_study_direction(self, study_id: int) -> study.StudyDirection:
@@ -441,7 +475,7 @@ class DaskStorage(optuna.storages.BaseStorage):
         return self.client.sync(
             self.client.scheduler.optuna_get_study_direction,
             study_id=study_id,
-            storage=self.storage,
+            storage_name=self.name,
         )
 
     def get_study_user_attrs(self, study_id: int) -> Dict[str, Any]:
@@ -461,7 +495,7 @@ class DaskStorage(optuna.storages.BaseStorage):
         return self.client.sync(
             self.client.scheduler.optuna_get_study_user_attrs,
             study_id=study_id,
-            storage=self.storage,
+            storage_name=self.name,
         )
 
     def get_study_system_attrs(self, study_id: int) -> Dict[str, Any]:
@@ -481,7 +515,7 @@ class DaskStorage(optuna.storages.BaseStorage):
         return self.client.sync(
             self.client.scheduler.optuna_get_study_system_attrs,
             study_id=study_id,
-            storage=self.storage,
+            storage_name=self.name,
         )
 
     async def _get_all_study_summaries(self) -> List[study.StudySummary]:
@@ -491,9 +525,10 @@ class DaskStorage(optuna.storages.BaseStorage):
             A list of :class:`~optuna.study.StudySummary` objects.
 
         """
+        print(f"name = {self.name}")
         serialized_summaries = (
             await self.client.scheduler.optuna_get_all_study_summaries(
-                storage=self.storage
+                storage_name=self.name
             )
         )
         return [deserialize_studysummary(s) for s in serialized_summaries]
@@ -534,7 +569,7 @@ class DaskStorage(optuna.storages.BaseStorage):
             self.client.scheduler.optuna_create_new_trial,
             study_id=study_id,
             template_trial=template_trial,
-            storage=self.storage,
+            storage_name=self.name,
         )
 
     def set_trial_state(self, trial_id: int, state: TrialState) -> bool:
@@ -563,7 +598,7 @@ class DaskStorage(optuna.storages.BaseStorage):
             self.client.scheduler.optuna_set_trial_state,
             trial_id=trial_id,
             state=state.name,
-            storage=self.storage,
+            storage_name=self.name,
         )
 
     def set_trial_param(
@@ -597,7 +632,7 @@ class DaskStorage(optuna.storages.BaseStorage):
             param_name=param_name,
             param_value_internal=param_value_internal,
             distribution=distribution_to_json(distribution),
-            storage=self.storage,
+            storage_name=self.name,
         )
 
     def get_trial_number_from_id(self, trial_id: int) -> int:
@@ -621,7 +656,7 @@ class DaskStorage(optuna.storages.BaseStorage):
         return self.client.sync(
             self.client.scheduler.optuna_get_trial_number_from_id,
             trial_id=trial_id,
-            storage=self.storage,
+            storage_name=self.name,
         )
 
     def get_trial_param(self, trial_id: int, param_name: str) -> float:
@@ -645,7 +680,7 @@ class DaskStorage(optuna.storages.BaseStorage):
             self.client.scheduler.optuna_get_trial_param,
             trial_id=trial_id,
             param_name=param_name,
-            storage=self.storage,
+            storage_name=self.name,
         )
 
     def set_trial_value(self, trial_id: int, value: float) -> None:
@@ -669,7 +704,7 @@ class DaskStorage(optuna.storages.BaseStorage):
             self.client.scheduler.optuna_set_trial_value,
             trial_id=trial_id,
             value=value,
-            storage=self.storage,
+            storage_name=self.name,
         )
 
     def set_trial_intermediate_value(
@@ -698,7 +733,7 @@ class DaskStorage(optuna.storages.BaseStorage):
             trial_id=trial_id,
             step=step,
             intermediate_value=intermediate_value,
-            storage=self.storage,
+            storage_name=self.name,
         )
 
     def set_trial_user_attr(self, trial_id: int, key: str, value: Any) -> None:
@@ -725,7 +760,7 @@ class DaskStorage(optuna.storages.BaseStorage):
             trial_id=trial_id,
             key=key,
             value=value,
-            storage=self.storage,
+            storage_name=self.name,
         )
 
     def set_trial_system_attr(self, trial_id: int, key: str, value: Any) -> None:
@@ -752,13 +787,13 @@ class DaskStorage(optuna.storages.BaseStorage):
             trial_id=trial_id,
             key=key,
             value=value,
-            storage=self.storage,
+            storage_name=self.name,
         )
 
     # Basic trial access
     async def _get_trial(self, trial_id: int) -> FrozenTrial:
         serialized_trial = await self.client.scheduler.optuna_get_trial(
-            trial_id=trial_id, storage=self.storage
+            trial_id=trial_id, storage_name=self.name
         )
         return deserialize_frozentrial(serialized_trial)
 
@@ -785,7 +820,7 @@ class DaskStorage(optuna.storages.BaseStorage):
         serialized_trials = await self.client.scheduler.optuna_get_all_trials(
             study_id=study_id,
             deepcopy=deepcopy,
-            storage=self.storage,
+            storage_name=self.name,
         )
         return [deserialize_frozentrial(t) for t in serialized_trials]
 
@@ -832,7 +867,7 @@ class DaskStorage(optuna.storages.BaseStorage):
             self.client.scheduler.optuna_get_n_trials,
             study_id=study_id,
             state=state,
-            storage=self.storage,
+            storage_name=self.name,
         )
 
     def read_trials_from_remote_storage(self, study_id: int) -> None:
@@ -847,5 +882,5 @@ class DaskStorage(optuna.storages.BaseStorage):
         return self.client.sync(
             self.client.scheduler.optuna_read_trials_from_remote_storage,
             study_id=study_id,
-            storage=self.storage,
+            storage_name=self.name,
         )
