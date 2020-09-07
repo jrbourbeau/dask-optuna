@@ -20,11 +20,19 @@ def deserialize_datetime(obj):
 def serialize_frozentrial(trial):
     data = trial.__dict__.copy()
     data["state"] = data["state"].name
+    for attr in [
+        "trial_id",
+        "number",
+        "params",
+        "user_attrs",
+        "system_attrs",
+        "distributions",
+        "datetime_start",
+    ]:
+        data[attr] = data.pop(f"_{attr}")
     data["distributions"] = {
-        k: distribution_to_json(v) for k, v in data["_distributions"].items()
+        k: distribution_to_json(v) for k, v in data["distributions"].items()
     }
-    data.pop("_distributions")
-    data["trial_id"] = data.pop("_trial_id")
     data["datetime_start"] = serialize_datetime(data["datetime_start"])
     data["datetime_complete"] = serialize_datetime(data["datetime_complete"])
     return data
