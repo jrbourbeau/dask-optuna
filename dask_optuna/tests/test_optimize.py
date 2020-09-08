@@ -5,6 +5,7 @@ from distributed.utils_test import gen_cluster
 
 import dask_optuna
 from dask_optuna.optimize import get_batch_sizes
+from .utils import get_storage_url
 
 
 def test_get_batch_sizes():
@@ -19,17 +20,20 @@ def objective(trial):
     return (x - 2) ** 2
 
 
+@pytest.mark.parametrize("storage_specifier", ["inmemory", "sqlite"])
 @pytest.mark.parametrize("processes", [True, False])
-def test_optimize_sync(processes):
+def test_optimize_sync(storage_specifier, processes):
     with Client(processes=processes):
-        study = optuna.create_study(storage=dask_optuna.DaskStorage())
-        dask_optuna.optimize(
-            study,
-            objective,
-            n_trials=10,
-            batch_size=5,
-        )
-        assert len(study.trials) == 10
+        with get_storage_url(storage_specifier) as url:
+            storage = dask_optuna.DaskStorage(storage=url)
+            study = optuna.create_study(storage=storage)
+            dask_optuna.optimize(
+                study,
+                objective,
+                n_trials=10,
+                batch_size=5,
+            )
+            assert len(study.trials) == 10
 
 
 @gen_cluster(client=True)
