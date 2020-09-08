@@ -98,7 +98,7 @@ class OptunaSchedulerExtension:
     ) -> None:
         return self.get_storage(storage_name).set_study_direction(
             study_id=study_id,
-            direction=direction,
+            direction=getattr(study.StudyDirection, direction),
         )
 
     def get_study_id_from_name(
@@ -392,7 +392,7 @@ class DaskStorage(optuna.storages.BaseStorage):
         return self.client.sync(
             self.client.scheduler.optuna_set_study_direction,
             study_id=study_id,
-            direction=direction,
+            direction=direction.name,
             storage_name=self.name,
         )
 
