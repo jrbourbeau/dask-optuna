@@ -1,15 +1,13 @@
 import tempfile
 from contextlib import contextmanager
 
-import optuna
-
 
 @contextmanager
 def get_storage_url(specifier):
     tmpfile = None
     try:
         if specifier == "inmemory":
-            url = optuna.storages.InMemoryStorage()
+            url = None
         elif specifier == "sqlite":
             tmpfile = tempfile.NamedTemporaryFile()
             url = "sqlite:///{}".format(tmpfile.name)
