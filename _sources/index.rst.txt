@@ -13,10 +13,39 @@ Dask-Optuna
 Dask-Optuna helps improve integration between `Optuna <https://optuna.org/>`_
 and `Dask <https://dask.org/>`_.
 
-.. attention::
 
-   This project is actively being developed so you may experience breaking
-   changes without warning.
+What Dask-Optuna does
+---------------------
+
+Dask-Optuna leverages Optuna's existing distributed optimization capabilities to run
+optimization trials in parallel on a Dask cluster. It does this by providing a
+Dask-compatible :class:`dask_optuna.DaskStorage` storage class which wraps an
+Optuna storage class (e.g. Optuna's in-memory or sqlite storage) and can be used
+directly by Optuna. For example:
+
+.. code-block::
+
+   import dask.distributed
+   import dask_optuna
+   
+   client = dask.distributed.Client()
+   # Wraps Optuna's in-memory storage
+   storage_1 = dask_optuna.DaskStorage()
+   # Wraps Optuna's SQLite DB storage
+   storage_2 = dask_optuna.DaskStorage("sqlite:///example.db")
+
+The underlying Optuna storage object lives on the cluster's scheduler and any method
+calls on the ``DaskStorage`` instance results in the same method being called on the
+underlying Optuna storage object.
+
+This offers two primary benefits:
+
+1. Helps extend Optuna's ``InMemoryStorage`` class to run across multiple processes.
+   This is important when using remote workers in a Dask cluster or situations
+   where Python's GIL leads to less-than-ideal parallelization.
+2. Reduces setup when using persistent storage (e.g. creating a SQLite DB that's globally available)
+   as the underlying Optuna storage class on the scheduler is accessible all workers
+   in a Dask cluster.
 
 
 Example
@@ -25,6 +54,7 @@ Example
 .. code-block::
 
    import optuna
+   import joblib
    import dask.distributed
    import dask_optuna
 
@@ -34,52 +64,33 @@ Example
 
    with dask.distributed.Client() as client:
       # Create a study using Dask-compatible storage
-      study = optuna.create_study(storage=dask_optuna.DaskStorage())
+      storage = dask_optuna.DaskStorage()
+      study = optuna.create_study(storage=storage)
       # Optimize in parallel on your Dask cluster
-      dask_optuna.optimize(study, objective, n_trials=100, batch_size=10)
+      with joblib.parallel_backend("dask"):
+         study.optimize(objective, n_trials=100, n_jobs=-1)
       print(f"best_params = {study.best_params}")
 
 
-Background
-----------
-
-Current Status
-^^^^^^^^^^^^^^
-
-Internally, Optuna uses `Joblib <https://joblib.readthedocs.io/en/latest/>`_ to support running optimizations in parallel.
-Because Joblib has a Dask backend, you can seamlessly have Joblib execute tasks on a
-Dask cluster by placing your Optuna code in a ``joblib.parallel_backend('dask')`` context manager:
-
-
-.. code-block::
-
-   import optuna
-   from dask.distributed import Client
-   import joblib
-
-   client = Client(...)
-   with joblib.parallel_backend('dask'):
-      # Your optuna code here
-
-This works very well for several use case.
-
-Pain Points
-^^^^^^^^^^^
-
-However, there are pain points when it comes to using Optuna and Dask together today. In particular:
-
-- Optuna's ``InMemory`` storage doesn’t support running optimization trials across multiple processes
-  (https://github.com/optuna/optuna/issues/1232)
-- Persistent storage (e.g. a sqlite database) is difficult to set up for a Dask cluster using remote workers,
-  which may not have access to the same filesystem the cluster scheduler or client uses.
-- ...
-
-**Dask-Optuna helps address these pain points to improve scaling Optuna using Dask**
-
 Community discussion
-^^^^^^^^^^^^^^^^^^^^
+--------------------
 
-Improving integration between Dask and Optuna has been discussed in both the
+Discussions on improving integration between Dask and Optuna are taking place in both the
 `Dask issue tracker <https://github.com/dask/dask/issues/6571>`_ and
-`Optuna issue tracker <https://github.com/optuna/optuna/issues/1766>`_. Please feel free to join these discussions
-if you'd like to get involved.
+`Optuna issue tracker <https://github.com/optuna/optuna/issues/1766>`_. Please feel free to join
+these conversations if you'd like to get involved.
+
+If you have feedback or thoughts on how Dask-Optuna may be improved, please feel free to `open
+an issue in Dask-Optuna's issue tracker <https://github.com/jrbourbeau/dask-optuna/issues/new>`_.
+
+
+FAQ
+---
+
+When would I use this?
+^^^^^^^^^^^^^^^^^^^^^^
+
+Dask-Optuna is useful if you want to use Optuna's ``InMemoryStorage`` when running trials in
+parallel across multiple processes or if the workers in your Dask cluster don't use the same
+filesystem that your Dask ``Client`` uses. If, for example, you're using a
+``dask.distributed.LocalCluster`` you may be better served by using Optuna's built in storage classes.
