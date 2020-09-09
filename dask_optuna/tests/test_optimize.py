@@ -4,15 +4,7 @@ from distributed import Client
 from distributed.utils_test import gen_cluster
 
 import dask_optuna
-from dask_optuna.optimize import get_batch_sizes
 from .utils import get_storage_url
-
-
-def test_get_batch_sizes():
-    assert get_batch_sizes(n_trials=10, batch_size=3) == [3, 3, 3, 1]
-    assert get_batch_sizes(n_trials=10, batch_size=5) == [5, 5]
-    assert get_batch_sizes(n_trials=10, batch_size=None) == [10]
-    assert get_batch_sizes(n_trials=10, batch_size=10) == [10]
 
 
 def objective(trial):
@@ -31,7 +23,6 @@ def test_optimize_sync(storage_specifier, processes):
                 study,
                 objective,
                 n_trials=10,
-                batch_size=5,
             )
             assert len(study.trials) == 10
 
@@ -44,7 +35,6 @@ def test_storage_raises(c, s, a, b):
             study,
             objective,
             n_trials=10,
-            batch_size=5,
         )
 
     output = str(excinfo.value)
