@@ -12,8 +12,8 @@ from optuna import study
 from optuna.trial import FrozenTrial
 from optuna.trial import TrialState
 
-from distributed import Client, get_worker
 from distributed.utils import thread_state
+from distributed.worker import get_client
 
 from .serialize import (
     serialize_frozentrial,
@@ -288,13 +288,8 @@ class DaskStorage(optuna.storages.BaseStorage):
     """ Implements Optuna Storage API """
 
     def __init__(self, storage=None, name=None, client=None):
-        self.storage = storage
         self.name = name or f"dask-storage-{uuid.uuid4().hex}"
-        try:
-            self.client = client or Client.current()
-        except ValueError:
-            # Initialise new client
-            self.client = get_worker().client
+        self.client = client or get_client()
 
         if self.client.asynchronous or getattr(
             thread_state, "on_event_loop_thread", False
@@ -302,14 +297,14 @@ class DaskStorage(optuna.storages.BaseStorage):
 
             async def _register():
                 await self.client.run_on_scheduler(
-                    register_with_scheduler, storage=self.storage, name=self.name
+                    register_with_scheduler, storage=storage, name=self.name
                 )
                 return self
 
             self._started = asyncio.ensure_future(_register())
         else:
             self.client.run_on_scheduler(
-                register_with_scheduler, storage=self.storage, name=self.name
+                register_with_scheduler, storage=storage, name=self.name
             )
 
     def __await__(self):
@@ -321,6 +316,15 @@ class DaskStorage(optuna.storages.BaseStorage):
                 return self
 
             return _().__await__()
+
+    def __reduce__(self):
+        return (DaskStorage, (None, self.name))
+
+    def get_base_storage(self):
+        def _(dask_scheduler=None, name=None):
+            return dask_scheduler.extensions["optuna"].storages[name]
+
+        return self.client.run_on_scheduler(_, name=self.name)
 
     def create_new_study(self, study_name: Optional[str] = None) -> int:
         return self.client.sync(
