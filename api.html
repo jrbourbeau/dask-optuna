@@ -230,36 +230,506 @@
 <col style="width: 90%" />
 </colgroup>
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="#dask_optuna.DaskStorage" title="dask_optuna.DaskStorage"><code class="xref py py-obj docutils literal notranslate"><span class="pre">dask_optuna.DaskStorage</span></code></a>([storage, name, client])</p></td>
-<td><p>Implements Optuna Storage API</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#dask_optuna.optimize" title="dask_optuna.optimize"><code class="xref py py-obj docutils literal notranslate"><span class="pre">dask_optuna.optimize</span></code></a>(study, func[, …])</p></td>
-<td><p>Optimize an objective function</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#dask_optuna.DaskStorage" title="dask_optuna.DaskStorage"><code class="xref py py-obj docutils literal notranslate"><span class="pre">dask_optuna.DaskStorage</span></code></a>([storage])</p></td>
+<td><p>Dask-compatible Storage class</p></td>
 </tr>
 </tbody>
 </table>
 <dl class="py class">
 <dt id="dask_optuna.DaskStorage">
-<em class="property">class </em><code class="sig-prename descclassname">dask_optuna.</code><code class="sig-name descname">DaskStorage</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">storage</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">name</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">client</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#dask_optuna.DaskStorage" title="Permalink to this definition">¶</a></dt>
-<dd><p>Implements Optuna Storage API</p>
-</dd></dl>
-
-<dl class="py function">
-<dt id="dask_optuna.optimize">
-<code class="sig-prename descclassname">dask_optuna.</code><code class="sig-name descname">optimize</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">study</span><span class="p">:</span> <span class="n">optuna.study.Study</span></em>, <em class="sig-param"><span class="n">func</span><span class="p">:</span> <span class="n">Callable<span class="p">[</span><span class="p">[</span>optuna.trial._trial.Trial<span class="p">]</span><span class="p">, </span>float<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">n_trials</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">100</span></em>, <em class="sig-param"><span class="n">client</span><span class="p">:</span> <span class="n">distributed.client.Client</span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#dask_optuna.optimize" title="Permalink to this definition">¶</a></dt>
-<dd><p>Optimize an objective function</p>
-<p>Trials are batched and each batch is run in parllel on a Dask cluster.</p>
+<em class="property">class </em><code class="sig-prename descclassname">dask_optuna.</code><code class="sig-name descname">DaskStorage</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">storage</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">name</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">client</span><span class="p">:</span> <span class="n">distributed.client.Client</span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#dask_optuna.DaskStorage" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dask-compatible Storage class</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>study</strong> – Optuna <code class="docutils literal notranslate"><span class="pre">Study</span></code> to use.</p></li>
-<li><p><strong>func</strong> – Objective function to optimize</p></li>
-<li><p><strong>n_trials</strong> – Number of optimization trials to perform. Defaults to 100.</p></li>
-<li><p><strong>client</strong> – Dask <code class="docutils literal notranslate"><span class="pre">Client</span></code> connected to your cluster. If not provided, <code class="docutils literal notranslate"><span class="pre">dask.distributed.default_client()</span></code>
-if used to determine which <code class="docutils literal notranslate"><span class="pre">Client</span></code> should be used.</p></li>
+<li><p><strong>storage</strong> – Optuna storage class or url to use for underlying Optuna storage to wrap
+(e.g. <code class="docutils literal notranslate"><span class="pre">None</span></code> for in-memory storage, <code class="docutils literal notranslate"><span class="pre">sqlite:///example.db</span></code> for SQLite storage).
+Defaults to <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p></li>
+<li><p><strong>name</strong> – Unique identifier for the Dask storage class. If not provided, a random name
+will be generated.</p></li>
+<li><p><strong>client</strong> – Dask <code class="docutils literal notranslate"><span class="pre">Client</span></code> to connect to. If not provided, will attempt to find an
+existing <code class="docutils literal notranslate"><span class="pre">Client</span></code>.</p></li>
 </ul>
 </dd>
 </dl>
+<dl class="py method">
+<dt id="dask_optuna.DaskStorage.create_new_study">
+<code class="sig-name descname">create_new_study</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">study_name</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; int<a class="headerlink" href="#dask_optuna.DaskStorage.create_new_study" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a new study from a name.</p>
+<p>If no name is specified, the storage class generates a name.
+The returned study ID is unique among all current and deleted studies.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>study_name</strong> – Name of the new study to create.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>ID of the created study.</p>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://optuna.readthedocs.io/en/stable/reference/generated/optuna.exceptions.DuplicatedStudyError.html#optuna.exceptions.DuplicatedStudyError" title="(in Optuna v2.1.0)"><strong>optuna.exceptions.DuplicatedStudyError</strong></a> – If a study with the same <code class="docutils literal notranslate"><span class="pre">study_name</span></code> already exists.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="dask_optuna.DaskStorage.create_new_trial">
+<code class="sig-name descname">create_new_trial</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">study_id</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">template_trial</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>optuna.trial._frozen.FrozenTrial<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; int<a class="headerlink" href="#dask_optuna.DaskStorage.create_new_trial" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create and add a new trial to a study.</p>
+<p>The returned trial ID is unique among all current and deleted trials.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>study_id</strong> – ID of the study.</p></li>
+<li><p><strong>template_trial</strong> – Template <code class="xref py py-class docutils literal notranslate"><span class="pre">FronzenTrial</span></code> with default user-attributes,
+system-attributes, intermediate-values, and a state.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>ID of the created trial.</p>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><p><strong>KeyError</strong> – If no study with the matching <code class="docutils literal notranslate"><span class="pre">study_id</span></code> exists.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="dask_optuna.DaskStorage.delete_study">
+<code class="sig-name descname">delete_study</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">study_id</span><span class="p">:</span> <span class="n">int</span></em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#dask_optuna.DaskStorage.delete_study" title="Permalink to this definition">¶</a></dt>
+<dd><p>Delete a study.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>study_id</strong> – ID of the study.</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><strong>KeyError</strong> – If no study with the matching <code class="docutils literal notranslate"><span class="pre">study_id</span></code> exists.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="dask_optuna.DaskStorage.get_all_study_summaries">
+<code class="sig-name descname">get_all_study_summaries</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; List<span class="p">[</span>optuna._study_summary.StudySummary<span class="p">]</span><a class="headerlink" href="#dask_optuna.DaskStorage.get_all_study_summaries" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read a list of <a class="reference external" href="https://optuna.readthedocs.io/en/stable/reference/generated/optuna.study.StudySummary.html#optuna.study.StudySummary" title="(in Optuna v2.1.0)"><code class="xref py py-class docutils literal notranslate"><span class="pre">StudySummary</span></code></a> objects.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>A list of <a class="reference external" href="https://optuna.readthedocs.io/en/stable/reference/generated/optuna.study.StudySummary.html#optuna.study.StudySummary" title="(in Optuna v2.1.0)"><code class="xref py py-class docutils literal notranslate"><span class="pre">StudySummary</span></code></a> objects.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="dask_optuna.DaskStorage.get_all_trials">
+<code class="sig-name descname">get_all_trials</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">study_id</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">deepcopy</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em><span class="sig-paren">)</span> &#x2192; List<span class="p">[</span>optuna.trial._frozen.FrozenTrial<span class="p">]</span><a class="headerlink" href="#dask_optuna.DaskStorage.get_all_trials" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read all trials in a study.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>study_id</strong> – ID of the study.</p></li>
+<li><p><strong>deepcopy</strong> – Whether to copy the list of trials before returning.
+Set to <code class="xref py py-obj docutils literal notranslate"><span class="pre">True</span></code> if you intend to update the list or elements of the list.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>List of trials in the study.</p>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><p><strong>KeyError</strong> – If no study with the matching <code class="docutils literal notranslate"><span class="pre">study_id</span></code> exists.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="dask_optuna.DaskStorage.get_n_trials">
+<code class="sig-name descname">get_n_trials</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">study_id</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">state</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>optuna.trial._state.TrialState<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; int<a class="headerlink" href="#dask_optuna.DaskStorage.get_n_trials" title="Permalink to this definition">¶</a></dt>
+<dd><p>Count the number of trials in a study.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>study_id</strong> – ID of the study.</p></li>
+<li><p><strong>state</strong> – <a class="reference external" href="https://optuna.readthedocs.io/en/stable/reference/generated/optuna.trial.TrialState.html#optuna.trial.TrialState" title="(in Optuna v2.1.0)"><code class="xref py py-class docutils literal notranslate"><span class="pre">TrialState</span></code></a> to filter trials.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Number of trials in the study.</p>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><p><strong>KeyError</strong> – If no study with the matching <code class="docutils literal notranslate"><span class="pre">study_id</span></code> exists.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="dask_optuna.DaskStorage.get_study_direction">
+<code class="sig-name descname">get_study_direction</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">study_id</span><span class="p">:</span> <span class="n">int</span></em><span class="sig-paren">)</span> &#x2192; optuna._study_direction.StudyDirection<a class="headerlink" href="#dask_optuna.DaskStorage.get_study_direction" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read whether a study maximizes or minimizes an objective.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>study_id</strong> – ID of a study.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Optimization direction of the study.</p>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><p><strong>KeyError</strong> – If no study with the matching <code class="docutils literal notranslate"><span class="pre">study_id</span></code> exists.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="dask_optuna.DaskStorage.get_study_id_from_name">
+<code class="sig-name descname">get_study_id_from_name</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">study_name</span><span class="p">:</span> <span class="n">str</span></em><span class="sig-paren">)</span> &#x2192; int<a class="headerlink" href="#dask_optuna.DaskStorage.get_study_id_from_name" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read the ID of a study.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>study_name</strong> – Name of the study.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>ID of the study.</p>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><p><strong>KeyError</strong> – If no study with the matching <code class="docutils literal notranslate"><span class="pre">study_name</span></code> exists.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="dask_optuna.DaskStorage.get_study_id_from_trial_id">
+<code class="sig-name descname">get_study_id_from_trial_id</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">trial_id</span><span class="p">:</span> <span class="n">int</span></em><span class="sig-paren">)</span> &#x2192; int<a class="headerlink" href="#dask_optuna.DaskStorage.get_study_id_from_trial_id" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read the ID of a study to which a trial belongs.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>trial_id</strong> – ID of the trial.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>ID of the study.</p>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><p><strong>KeyError</strong> – If no trial with the matching <code class="docutils literal notranslate"><span class="pre">trial_id</span></code> exists.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="dask_optuna.DaskStorage.get_study_name_from_id">
+<code class="sig-name descname">get_study_name_from_id</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">study_id</span><span class="p">:</span> <span class="n">int</span></em><span class="sig-paren">)</span> &#x2192; str<a class="headerlink" href="#dask_optuna.DaskStorage.get_study_name_from_id" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read the study name of a study.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>study_id</strong> – ID of the study.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Name of the study.</p>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><p><strong>KeyError</strong> – If no study with the matching <code class="docutils literal notranslate"><span class="pre">study_id</span></code> exists.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="dask_optuna.DaskStorage.get_study_system_attrs">
+<code class="sig-name descname">get_study_system_attrs</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">study_id</span><span class="p">:</span> <span class="n">int</span></em><span class="sig-paren">)</span> &#x2192; Dict<span class="p">[</span>str<span class="p">, </span>Any<span class="p">]</span><a class="headerlink" href="#dask_optuna.DaskStorage.get_study_system_attrs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read the optuna-internal attributes of a study.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>study_id</strong> – ID of the study.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Dictionary with the optuna-internal attributes of the study.</p>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><p><strong>KeyError</strong> – If no study with the matching <code class="docutils literal notranslate"><span class="pre">study_id</span></code> exists.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="dask_optuna.DaskStorage.get_study_user_attrs">
+<code class="sig-name descname">get_study_user_attrs</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">study_id</span><span class="p">:</span> <span class="n">int</span></em><span class="sig-paren">)</span> &#x2192; Dict<span class="p">[</span>str<span class="p">, </span>Any<span class="p">]</span><a class="headerlink" href="#dask_optuna.DaskStorage.get_study_user_attrs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read the user-defined attributes of a study.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>study_id</strong> – ID of the study.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Dictionary with the user attributes of the study.</p>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><p><strong>KeyError</strong> – If no study with the matching <code class="docutils literal notranslate"><span class="pre">study_id</span></code> exists.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="dask_optuna.DaskStorage.get_trial">
+<code class="sig-name descname">get_trial</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">trial_id</span><span class="p">:</span> <span class="n">int</span></em><span class="sig-paren">)</span> &#x2192; optuna.trial._frozen.FrozenTrial<a class="headerlink" href="#dask_optuna.DaskStorage.get_trial" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read a trial.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>trial_id</strong> – ID of the trial.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Trial with a matching trial ID.</p>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><p><strong>KeyError</strong> – If no trial with the matching <code class="docutils literal notranslate"><span class="pre">trial_id</span></code> exists.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="dask_optuna.DaskStorage.get_trial_number_from_id">
+<code class="sig-name descname">get_trial_number_from_id</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">trial_id</span><span class="p">:</span> <span class="n">int</span></em><span class="sig-paren">)</span> &#x2192; int<a class="headerlink" href="#dask_optuna.DaskStorage.get_trial_number_from_id" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read the trial number of a trial.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The trial number is only unique within a study, and is sequential.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>trial_id</strong> – ID of the trial.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Number of the trial.</p>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><p><strong>KeyError</strong> – If no trial with the matching <code class="docutils literal notranslate"><span class="pre">trial_id</span></code> exists.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="dask_optuna.DaskStorage.get_trial_param">
+<code class="sig-name descname">get_trial_param</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">trial_id</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">param_name</span><span class="p">:</span> <span class="n">str</span></em><span class="sig-paren">)</span> &#x2192; float<a class="headerlink" href="#dask_optuna.DaskStorage.get_trial_param" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read the parameter of a trial.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>trial_id</strong> – ID of the trial.</p></li>
+<li><p><strong>param_name</strong> – Name of the parameter.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Internal representation of the parameter.</p>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><p><strong>KeyError</strong> – If no trial with the matching <code class="docutils literal notranslate"><span class="pre">trial_id</span></code> exists.
+    If no such parameter exists.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="dask_optuna.DaskStorage.read_trials_from_remote_storage">
+<code class="sig-name descname">read_trials_from_remote_storage</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">study_id</span><span class="p">:</span> <span class="n">int</span></em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#dask_optuna.DaskStorage.read_trials_from_remote_storage" title="Permalink to this definition">¶</a></dt>
+<dd><p>Make an internal cache of trials up-to-date.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>study_id</strong> – ID of the study.</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><strong>KeyError</strong> – If no study with the matching <code class="docutils literal notranslate"><span class="pre">study_id</span></code> exists.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="dask_optuna.DaskStorage.set_study_direction">
+<code class="sig-name descname">set_study_direction</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">study_id</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">direction</span><span class="p">:</span> <span class="n">optuna._study_direction.StudyDirection</span></em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#dask_optuna.DaskStorage.set_study_direction" title="Permalink to this definition">¶</a></dt>
+<dd><p>Register an optimization problem direction to a study.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>study_id</strong> – ID of the study.</p></li>
+<li><p><strong>direction</strong> – Either <a class="reference external" href="https://optuna.readthedocs.io/en/stable/reference/generated/optuna.study.StudyDirection.html#optuna.study.StudyDirection.MAXIMIZE" title="(in Optuna v2.1.0)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">MAXIMIZE</span></code></a> or
+<a class="reference external" href="https://optuna.readthedocs.io/en/stable/reference/generated/optuna.study.StudyDirection.html#optuna.study.StudyDirection.MINIMIZE" title="(in Optuna v2.1.0)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">MINIMIZE</span></code></a>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>KeyError</strong> – If no study with the matching <code class="docutils literal notranslate"><span class="pre">study_id</span></code> exists.</p></li>
+<li><p><strong>ValueError</strong> – If the direction is already set and the passed <code class="docutils literal notranslate"><span class="pre">direction</span></code> is the opposite
+    direction or <a class="reference external" href="https://optuna.readthedocs.io/en/stable/reference/generated/optuna.study.StudyDirection.html#optuna.study.StudyDirection.NOT_SET" title="(in Optuna v2.1.0)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">NOT_SET</span></code></a>.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="dask_optuna.DaskStorage.set_study_system_attr">
+<code class="sig-name descname">set_study_system_attr</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">study_id</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">key</span><span class="p">:</span> <span class="n">str</span></em>, <em class="sig-param"><span class="n">value</span><span class="p">:</span> <span class="n">Any</span></em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#dask_optuna.DaskStorage.set_study_system_attr" title="Permalink to this definition">¶</a></dt>
+<dd><p>Register an optuna-internal attribute to a study.</p>
+<p>This method overwrites any existing attribute.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>study_id</strong> – ID of the study.</p></li>
+<li><p><strong>key</strong> – Attribute key.</p></li>
+<li><p><strong>value</strong> – Attribute value. It should be JSON serializable.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><strong>KeyError</strong> – If no study with the matching <code class="docutils literal notranslate"><span class="pre">study_id</span></code> exists.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="dask_optuna.DaskStorage.set_study_user_attr">
+<code class="sig-name descname">set_study_user_attr</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">study_id</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">key</span><span class="p">:</span> <span class="n">str</span></em>, <em class="sig-param"><span class="n">value</span><span class="p">:</span> <span class="n">Any</span></em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#dask_optuna.DaskStorage.set_study_user_attr" title="Permalink to this definition">¶</a></dt>
+<dd><p>Register a user-defined attribute to a study.</p>
+<p>This method overwrites any existing attribute.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>study_id</strong> – ID of the study.</p></li>
+<li><p><strong>key</strong> – Attribute key.</p></li>
+<li><p><strong>value</strong> – Attribute value. It should be JSON serializable.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><strong>KeyError</strong> – If no study with the matching <code class="docutils literal notranslate"><span class="pre">study_id</span></code> exists.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="dask_optuna.DaskStorage.set_trial_intermediate_value">
+<code class="sig-name descname">set_trial_intermediate_value</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">trial_id</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">step</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">intermediate_value</span><span class="p">:</span> <span class="n">float</span></em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#dask_optuna.DaskStorage.set_trial_intermediate_value" title="Permalink to this definition">¶</a></dt>
+<dd><p>Report an intermediate value of an objective function.</p>
+<p>This method overwrites any existing intermediate value associated with the given step.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>trial_id</strong> – ID of the trial.</p></li>
+<li><p><strong>step</strong> – Step of the trial (e.g., the epoch when training a neural network).</p></li>
+<li><p><strong>intermediate_value</strong> – Intermediate value corresponding to the step.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>KeyError</strong> – If no trial with the matching <code class="docutils literal notranslate"><span class="pre">trial_id</span></code> exists.</p></li>
+<li><p><strong>RuntimeError</strong> – If the trial is already finished.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="dask_optuna.DaskStorage.set_trial_param">
+<code class="sig-name descname">set_trial_param</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">trial_id</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">param_name</span><span class="p">:</span> <span class="n">str</span></em>, <em class="sig-param"><span class="n">param_value_internal</span><span class="p">:</span> <span class="n">float</span></em>, <em class="sig-param"><span class="n">distribution</span><span class="p">:</span> <span class="n">optuna.distributions.BaseDistribution</span></em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#dask_optuna.DaskStorage.set_trial_param" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set a parameter to a trial.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>trial_id</strong> – ID of the trial.</p></li>
+<li><p><strong>param_name</strong> – Name of the parameter.</p></li>
+<li><p><strong>param_value_internal</strong> – Internal representation of the parameter value.</p></li>
+<li><p><strong>distribution</strong> – Sampled distribution of the parameter.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>KeyError</strong> – If no trial with the matching <code class="docutils literal notranslate"><span class="pre">trial_id</span></code> exists.</p></li>
+<li><p><strong>RuntimeError</strong> – If the trial is already finished.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="dask_optuna.DaskStorage.set_trial_state">
+<code class="sig-name descname">set_trial_state</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">trial_id</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">state</span><span class="p">:</span> <span class="n">optuna.trial._state.TrialState</span></em><span class="sig-paren">)</span> &#x2192; bool<a class="headerlink" href="#dask_optuna.DaskStorage.set_trial_state" title="Permalink to this definition">¶</a></dt>
+<dd><p>Update the state of a trial.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>trial_id</strong> – ID of the trial.</p></li>
+<li><p><strong>state</strong> – New state of the trial.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">True</span></code> if the state is successfully updated.
+<code class="xref py py-obj docutils literal notranslate"><span class="pre">False</span></code> if the state is kept the same.
+The latter happens when this method tries to update the state of
+<a class="reference external" href="https://optuna.readthedocs.io/en/stable/reference/generated/optuna.trial.TrialState.html#optuna.trial.TrialState.RUNNING" title="(in Optuna v2.1.0)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">RUNNING</span></code></a> trial to
+<a class="reference external" href="https://optuna.readthedocs.io/en/stable/reference/generated/optuna.trial.TrialState.html#optuna.trial.TrialState.RUNNING" title="(in Optuna v2.1.0)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">RUNNING</span></code></a>.</p>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>KeyError</strong> – If no trial with the matching <code class="docutils literal notranslate"><span class="pre">trial_id</span></code> exists.</p></li>
+<li><p><strong>RuntimeError</strong> – If the trial is already finished.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="dask_optuna.DaskStorage.set_trial_system_attr">
+<code class="sig-name descname">set_trial_system_attr</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">trial_id</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">key</span><span class="p">:</span> <span class="n">str</span></em>, <em class="sig-param"><span class="n">value</span><span class="p">:</span> <span class="n">Any</span></em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#dask_optuna.DaskStorage.set_trial_system_attr" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set an optuna-internal attribute to a trial.</p>
+<p>This method overwrites any existing attribute.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>trial_id</strong> – ID of the trial.</p></li>
+<li><p><strong>key</strong> – Attribute key.</p></li>
+<li><p><strong>value</strong> – Attribute value. It should be JSON serializable.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>KeyError</strong> – If no trial with the matching <code class="docutils literal notranslate"><span class="pre">trial_id</span></code> exists.</p></li>
+<li><p><strong>RuntimeError</strong> – If the trial is already finished.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="dask_optuna.DaskStorage.set_trial_user_attr">
+<code class="sig-name descname">set_trial_user_attr</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">trial_id</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">key</span><span class="p">:</span> <span class="n">str</span></em>, <em class="sig-param"><span class="n">value</span><span class="p">:</span> <span class="n">Any</span></em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#dask_optuna.DaskStorage.set_trial_user_attr" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set a user-defined attribute to a trial.</p>
+<p>This method overwrites any existing attribute.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>trial_id</strong> – ID of the trial.</p></li>
+<li><p><strong>key</strong> – Attribute key.</p></li>
+<li><p><strong>value</strong> – Attribute value. It should be JSON serializable.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>KeyError</strong> – If no trial with the matching <code class="docutils literal notranslate"><span class="pre">trial_id</span></code> exists.</p></li>
+<li><p><strong>RuntimeError</strong> – If the trial is already finished.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="dask_optuna.DaskStorage.set_trial_value">
+<code class="sig-name descname">set_trial_value</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">trial_id</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">value</span><span class="p">:</span> <span class="n">float</span></em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#dask_optuna.DaskStorage.set_trial_value" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set a return value of an objective function.</p>
+<p>This method overwrites any existing trial value.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>trial_id</strong> – ID of the trial.</p></li>
+<li><p><strong>value</strong> – Value of the objective function.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>KeyError</strong> – If no trial with the matching <code class="docutils literal notranslate"><span class="pre">trial_id</span></code> exists.</p></li>
+<li><p><strong>RuntimeError</strong> – If the trial is already finished.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
 </dd></dl>
 
 </div>
