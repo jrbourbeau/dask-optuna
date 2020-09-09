@@ -8,28 +8,16 @@ from .storage import DaskStorage
 ObjectiveFuncType = Callable[[optuna.Trial], float]
 
 
-def _optimize_batch(study_name, objective, storage=None, name=None, n_trials=None):
-    dask_storage = DaskStorage(storage=storage, name=name)
+def run_trial(study_name, objective, storage_name=None):
+    dask_storage = DaskStorage(name=storage_name)
     study = optuna.load_study(study_name=study_name, storage=dask_storage)
-    study.optimize(objective, n_trials=n_trials)
-
-
-def get_batch_sizes(n_trials, batch_size=None):
-    if batch_size is None:
-        # In not specified, use a single batch
-        return [n_trials]
-
-    batch_sizes = [batch_size] * (n_trials // batch_size)
-    if n_trials % batch_size:
-        batch_sizes += [n_trials % batch_size]
-    return batch_sizes
+    study.optimize(objective, n_trials=1)
 
 
 def optimize(
     study: optuna.Study,
     func: ObjectiveFuncType,
     n_trials: int = 100,
-    batch_size: int = None,
     client: Client = None,
 ) -> None:
     """Optimize an objective function
@@ -44,8 +32,6 @@ def optimize(
         Objective function to optimize
     n_trials
         Number of optimization trials to perform. Defaults to 100.
-    batch_size
-        Number of trials to perform per batch. Defaults to a single batch of size ``n_trials``.
     client
         Dask ``Client`` connected to your cluster. If not provided, ``dask.distributed.default_client()``
         if used to determine which ``Client`` should be used.
@@ -60,14 +46,12 @@ def optimize(
 
     futures = [
         client.submit(
-            _optimize_batch,
+            run_trial,
             study_name=study.study_name,
             objective=func,
-            storage=dask_storage.storage,
-            name=dask_storage.name,
-            n_trials=n,
+            storage_name=dask_storage.name,
             pure=False,
         )
-        for n in get_batch_sizes(n_trials, batch_size)
+        for _ in range(n_trials)
     ]
     wait(futures)
