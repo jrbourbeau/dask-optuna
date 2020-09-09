@@ -12,6 +12,7 @@ from optuna import study
 from optuna.trial import FrozenTrial
 from optuna.trial import TrialState
 
+from distributed import Client
 from distributed.utils import thread_state
 from distributed.worker import get_client
 
@@ -261,14 +262,6 @@ class OptunaSchedulerExtension:
     def read_trials_from_remote_storage(
         self, comm, study_id: int, storage_name: str = None
     ) -> None:
-        """Make an internal cache of trials up-to-date.
-        Args:
-            study_id:
-                ID of the study.
-        Raises:
-            :exc:`KeyError`:
-                If no study with the matching ``study_id`` exists.
-        """
         return self.get_storage(storage_name).read_trials_from_remote_storage(
             study_id=study_id
         )
@@ -284,10 +277,31 @@ def register_with_scheduler(dask_scheduler=None, storage=None, name=None):
         ext.storages[name] = optuna.storages.get_storage(storage)
 
 
-class DaskStorage(optuna.storages.BaseStorage):
-    """ Implements Optuna Storage API """
+def use_basestorage_doc(func):
+    method = getattr(optuna.storages.BaseStorage, func.__name__, None)
+    if method is not None:
+        func.__doc__ = method.__doc__
+    return func
 
-    def __init__(self, storage=None, name=None, client=None):
+
+class DaskStorage(optuna.storages.BaseStorage):
+    """Dask-compatible Storage class
+
+    Parameters
+    ----------
+    storage
+        Optuna storage class or url to use for underlying Optuna storage to wrap
+        (e.g. ``None`` for in-memory storage, ``sqlite:///example.db`` for SQLite storage).
+        Defaults to ``None``.
+    name
+        Unique identifier for the Dask storage class. If not provided, a random name
+        will be generated.
+    client
+        Dask ``Client`` to connect to. If not provided, will attempt to find an
+        existing ``Client``.
+    """
+
+    def __init__(self, storage=None, name: str = None, client: Client = None):
         self.name = name or f"dask-storage-{uuid.uuid4().hex}"
         self.client = client or get_client()
 
@@ -326,6 +340,7 @@ class DaskStorage(optuna.storages.BaseStorage):
 
         return self.client.run_on_scheduler(_, name=self.name)
 
+    @use_basestorage_doc
     def create_new_study(self, study_name: Optional[str] = None) -> int:
         return self.client.sync(
             self.client.scheduler.optuna_create_new_study,
@@ -333,6 +348,7 @@ class DaskStorage(optuna.storages.BaseStorage):
             storage_name=self.name,
         )
 
+    @use_basestorage_doc
     def delete_study(self, study_id: int) -> None:
         return self.client.sync(
             self.client.scheduler.optuna_delete_study,
@@ -340,6 +356,7 @@ class DaskStorage(optuna.storages.BaseStorage):
             storage_name=self.name,
         )
 
+    @use_basestorage_doc
     def set_study_user_attr(self, study_id: int, key: str, value: Any) -> None:
         return self.client.sync(
             self.client.scheduler.optuna_set_study_user_attr,
@@ -349,23 +366,8 @@ class DaskStorage(optuna.storages.BaseStorage):
             storage_name=self.name,
         )
 
+    @use_basestorage_doc
     def set_study_system_attr(self, study_id: int, key: str, value: Any) -> None:
-        """Register an optuna-internal attribute to a study.
-
-        This method overwrites any existing attribute.
-
-        Args:
-            study_id:
-                ID of the study.
-            key:
-                Attribute key.
-            value:
-                Attribute value. It should be JSON serializable.
-
-        Raises:
-            :exc:`KeyError`:
-                If no study with the matching ``study_id`` exists.
-        """
         return self.client.sync(
             self.client.scheduler.optuna_set_study_system_attr,
             study_id=study_id,
@@ -374,25 +376,10 @@ class DaskStorage(optuna.storages.BaseStorage):
             storage_name=self.name,
         )
 
+    @use_basestorage_doc
     def set_study_direction(
         self, study_id: int, direction: study.StudyDirection
     ) -> None:
-        """Register an optimization problem direction to a study.
-
-        Args:
-            study_id:
-                ID of the study.
-            direction:
-                Either :obj:`~optuna.study.StudyDirection.MAXIMIZE` or
-                :obj:`~optuna.study.StudyDirection.MINIMIZE`.
-
-        Raises:
-            :exc:`KeyError`:
-                If no study with the matching ``study_id`` exists.
-            :exc:`ValueError`:
-                If the direction is already set and the passed ``direction`` is the opposite
-                direction or :obj:`~optuna.study.StudyDirection.NOT_SET`.
-        """
         return self.client.sync(
             self.client.scheduler.optuna_set_study_direction,
             study_id=study_id,
@@ -402,120 +389,48 @@ class DaskStorage(optuna.storages.BaseStorage):
 
     # Basic study access
 
+    @use_basestorage_doc
     def get_study_id_from_name(self, study_name: str) -> int:
-        """Read the ID of a study.
-
-        Args:
-            study_name:
-                Name of the study.
-
-        Returns:
-            ID of the study.
-
-        Raises:
-            :exc:`KeyError`:
-                If no study with the matching ``study_name`` exists.
-        """
         return self.client.sync(
             self.client.scheduler.optuna_get_study_id_from_name,
             study_name=study_name,
             storage_name=self.name,
         )
 
+    @use_basestorage_doc
     def get_study_id_from_trial_id(self, trial_id: int) -> int:
-        """Read the ID of a study to which a trial belongs.
-
-        Args:
-            trial_id:
-                ID of the trial.
-
-        Returns:
-            ID of the study.
-
-        Raises:
-            :exc:`KeyError`:
-                If no trial with the matching ``trial_id`` exists.
-        """
         return self.client.sync(
             self.client.scheduler.optuna_get_study_id_from_trial_id,
             trial_id=trial_id,
             storage_name=self.name,
         )
 
+    @use_basestorage_doc
     def get_study_name_from_id(self, study_id: int) -> str:
-        """Read the study name of a study.
-
-        Args:
-            study_id:
-                ID of the study.
-
-        Returns:
-            Name of the study.
-
-        Raises:
-            :exc:`KeyError`:
-                If no study with the matching ``study_id`` exists.
-        """
         return self.client.sync(
             self.client.scheduler.optuna_get_study_name_from_id,
             study_id=study_id,
             storage_name=self.name,
         )
 
+    @use_basestorage_doc
     def get_study_direction(self, study_id: int) -> study.StudyDirection:
-        """Read whether a study maximizes or minimizes an objective.
-
-        Args:
-            study_id:
-                ID of a study.
-
-        Returns:
-            Optimization direction of the study.
-
-        Raises:
-            :exc:`KeyError`:
-                If no study with the matching ``study_id`` exists.
-        """
         return self.client.sync(
             self.client.scheduler.optuna_get_study_direction,
             study_id=study_id,
             storage_name=self.name,
         )
 
+    @use_basestorage_doc
     def get_study_user_attrs(self, study_id: int) -> Dict[str, Any]:
-        """Read the user-defined attributes of a study.
-
-        Args:
-            study_id:
-                ID of the study.
-
-        Returns:
-            Dictionary with the user attributes of the study.
-
-        Raises:
-            :exc:`KeyError`:
-                If no study with the matching ``study_id`` exists.
-        """
         return self.client.sync(
             self.client.scheduler.optuna_get_study_user_attrs,
             study_id=study_id,
             storage_name=self.name,
         )
 
+    @use_basestorage_doc
     def get_study_system_attrs(self, study_id: int) -> Dict[str, Any]:
-        """Read the optuna-internal attributes of a study.
-
-        Args:
-            study_id:
-                ID of the study.
-
-        Returns:
-            Dictionary with the optuna-internal attributes of the study.
-
-        Raises:
-            :exc:`KeyError`:
-                If no study with the matching ``study_id`` exists.
-        """
         return self.client.sync(
             self.client.scheduler.optuna_get_study_system_attrs,
             study_id=study_id,
@@ -523,12 +438,6 @@ class DaskStorage(optuna.storages.BaseStorage):
         )
 
     async def _get_all_study_summaries(self) -> List[study.StudySummary]:
-        """Read a list of :class:`~optuna.study.StudySummary` objects.
-
-        Returns:
-            A list of :class:`~optuna.study.StudySummary` objects.
-
-        """
         print(f"name = {self.name}")
         serialized_summaries = (
             await self.client.scheduler.optuna_get_all_study_summaries(
@@ -537,38 +446,16 @@ class DaskStorage(optuna.storages.BaseStorage):
         )
         return [deserialize_studysummary(s) for s in serialized_summaries]
 
+    @use_basestorage_doc
     def get_all_study_summaries(self) -> List[study.StudySummary]:
-        """Read a list of :class:`~optuna.study.StudySummary` objects.
-
-        Returns:
-            A list of :class:`~optuna.study.StudySummary` objects.
-
-        """
         return self.client.sync(self._get_all_study_summaries)
 
     # Basic trial manipulation
 
+    @use_basestorage_doc
     def create_new_trial(
         self, study_id: int, template_trial: Optional[FrozenTrial] = None
     ) -> int:
-        """Create and add a new trial to a study.
-
-        The returned trial ID is unique among all current and deleted trials.
-
-        Args:
-            study_id:
-                ID of the study.
-            template_trial:
-                Template :class:`~optuna.trial.FronzenTrial` with default user-attributes,
-                system-attributes, intermediate-values, and a state.
-
-        Returns:
-            ID of the created trial.
-
-        Raises:
-            :exc:`KeyError`:
-                If no study with the matching ``study_id`` exists.
-        """
         return self.client.sync(
             self.client.scheduler.optuna_create_new_trial,
             study_id=study_id,
@@ -576,28 +463,8 @@ class DaskStorage(optuna.storages.BaseStorage):
             storage_name=self.name,
         )
 
+    @use_basestorage_doc
     def set_trial_state(self, trial_id: int, state: TrialState) -> bool:
-        """Update the state of a trial.
-
-        Args:
-            trial_id:
-                ID of the trial.
-            state:
-                New state of the trial.
-
-        Returns:
-            :obj:`True` if the state is successfully updated.
-            :obj:`False` if the state is kept the same.
-            The latter happens when this method tries to update the state of
-            :obj:`~optuna.trial.TrialState.RUNNING` trial to
-            :obj:`~optuna.trial.TrialState.RUNNING`.
-
-        Raises:
-            :exc:`KeyError`:
-                If no trial with the matching ``trial_id`` exists.
-            :exc:`RuntimeError`:
-                If the trial is already finished.
-        """
         return self.client.sync(
             self.client.scheduler.optuna_set_trial_state,
             trial_id=trial_id,
@@ -605,6 +472,7 @@ class DaskStorage(optuna.storages.BaseStorage):
             storage_name=self.name,
         )
 
+    @use_basestorage_doc
     def set_trial_param(
         self,
         trial_id: int,
@@ -612,24 +480,6 @@ class DaskStorage(optuna.storages.BaseStorage):
         param_value_internal: float,
         distribution: BaseDistribution,
     ) -> None:
-        """Set a parameter to a trial.
-
-        Args:
-            trial_id:
-                ID of the trial.
-            param_name:
-                Name of the parameter.
-            param_value_internal:
-                Internal representation of the parameter value.
-            distribution:
-                Sampled distribution of the parameter.
-
-        Raises:
-            :exc:`KeyError`:
-                If no trial with the matching ``trial_id`` exists.
-            :exc:`RuntimeError`:
-                If the trial is already finished.
-        """
         return self.client.sync(
             self.client.scheduler.optuna_set_trial_param,
             trial_id=trial_id,
@@ -639,47 +489,16 @@ class DaskStorage(optuna.storages.BaseStorage):
             storage_name=self.name,
         )
 
+    @use_basestorage_doc
     def get_trial_number_from_id(self, trial_id: int) -> int:
-        """Read the trial number of a trial.
-
-        .. note::
-
-            The trial number is only unique within a study, and is sequential.
-
-        Args:
-            trial_id:
-                ID of the trial.
-
-        Returns:
-            Number of the trial.
-
-        Raises:
-            :exc:`KeyError`:
-                If no trial with the matching ``trial_id`` exists.
-        """
         return self.client.sync(
             self.client.scheduler.optuna_get_trial_number_from_id,
             trial_id=trial_id,
             storage_name=self.name,
         )
 
+    @use_basestorage_doc
     def get_trial_param(self, trial_id: int, param_name: str) -> float:
-        """Read the parameter of a trial.
-
-        Args:
-            trial_id:
-                ID of the trial.
-            param_name:
-                Name of the parameter.
-
-        Returns:
-            Internal representation of the parameter.
-
-        Raises:
-            :exc:`KeyError`:
-                If no trial with the matching ``trial_id`` exists.
-                If no such parameter exists.
-        """
         return self.client.sync(
             self.client.scheduler.optuna_get_trial_param,
             trial_id=trial_id,
@@ -687,23 +506,8 @@ class DaskStorage(optuna.storages.BaseStorage):
             storage_name=self.name,
         )
 
+    @use_basestorage_doc
     def set_trial_value(self, trial_id: int, value: float) -> None:
-        """Set a return value of an objective function.
-
-        This method overwrites any existing trial value.
-
-        Args:
-            trial_id:
-                ID of the trial.
-            value:
-                Value of the objective function.
-
-        Raises:
-            :exc:`KeyError`:
-                If no trial with the matching ``trial_id`` exists.
-            :exc:`RuntimeError`:
-                If the trial is already finished.
-        """
         return self.client.sync(
             self.client.scheduler.optuna_set_trial_value,
             trial_id=trial_id,
@@ -711,27 +515,10 @@ class DaskStorage(optuna.storages.BaseStorage):
             storage_name=self.name,
         )
 
+    @use_basestorage_doc
     def set_trial_intermediate_value(
         self, trial_id: int, step: int, intermediate_value: float
     ) -> None:
-        """Report an intermediate value of an objective function.
-
-        This method overwrites any existing intermediate value associated with the given step.
-
-        Args:
-            trial_id:
-                ID of the trial.
-            step:
-                Step of the trial (e.g., the epoch when training a neural network).
-            intermediate_value:
-                Intermediate value corresponding to the step.
-
-        Raises:
-            :exc:`KeyError`:
-                If no trial with the matching ``trial_id`` exists.
-            :exc:`RuntimeError`:
-                If the trial is already finished.
-        """
         return self.client.sync(
             self.client.scheduler.optuna_set_trial_intermediate_value,
             trial_id=trial_id,
@@ -740,25 +527,8 @@ class DaskStorage(optuna.storages.BaseStorage):
             storage_name=self.name,
         )
 
+    @use_basestorage_doc
     def set_trial_user_attr(self, trial_id: int, key: str, value: Any) -> None:
-        """Set a user-defined attribute to a trial.
-
-        This method overwrites any existing attribute.
-
-        Args:
-            trial_id:
-                ID of the trial.
-            key:
-                Attribute key.
-            value:
-                Attribute value. It should be JSON serializable.
-
-        Raises:
-            :exc:`KeyError`:
-                If no trial with the matching ``trial_id`` exists.
-            :exc:`RuntimeError`:
-                If the trial is already finished.
-        """
         return self.client.sync(
             self.client.scheduler.optuna_set_trial_user_attr,
             trial_id=trial_id,
@@ -767,25 +537,8 @@ class DaskStorage(optuna.storages.BaseStorage):
             storage_name=self.name,
         )
 
+    @use_basestorage_doc
     def set_trial_system_attr(self, trial_id: int, key: str, value: Any) -> None:
-        """Set an optuna-internal attribute to a trial.
-
-        This method overwrites any existing attribute.
-
-        Args:
-            trial_id:
-                ID of the trial.
-            key:
-                Attribute key.
-            value:
-                Attribute value. It should be JSON serializable.
-
-        Raises:
-            :exc:`KeyError`:
-                If no trial with the matching ``trial_id`` exists.
-            :exc:`RuntimeError`:
-                If the trial is already finished.
-        """
         return self.client.sync(
             self.client.scheduler.optuna_set_trial_system_attr,
             trial_id=trial_id,
@@ -801,21 +554,8 @@ class DaskStorage(optuna.storages.BaseStorage):
         )
         return deserialize_frozentrial(serialized_trial)
 
+    @use_basestorage_doc
     def get_trial(self, trial_id: int) -> FrozenTrial:
-        """Read a trial.
-
-        Args:
-            trial_id:
-                ID of the trial.
-
-        Returns:
-            Trial with a matching trial ID.
-
-        Raises:
-            :exc:`KeyError`:
-                If no trial with the matching ``trial_id`` exists.
-        """
-
         return self.client.sync(self._get_trial, trial_id=trial_id)
 
     async def _get_all_trials(
@@ -828,45 +568,16 @@ class DaskStorage(optuna.storages.BaseStorage):
         )
         return [deserialize_frozentrial(t) for t in serialized_trials]
 
+    @use_basestorage_doc
     def get_all_trials(self, study_id: int, deepcopy: bool = True) -> List[FrozenTrial]:
-        """Read all trials in a study.
-
-        Args:
-            study_id:
-                ID of the study.
-            deepcopy:
-                Whether to copy the list of trials before returning.
-                Set to :obj:`True` if you intend to update the list or elements of the list.
-
-        Returns:
-            List of trials in the study.
-
-        Raises:
-            :exc:`KeyError`:
-                If no study with the matching ``study_id`` exists.
-        """
         return self.client.sync(
             self._get_all_trials,
             study_id=study_id,
             deepcopy=deepcopy,
         )
 
+    @use_basestorage_doc
     def get_n_trials(self, study_id: int, state: Optional[TrialState] = None) -> int:
-        """Count the number of trials in a study.
-
-        Args:
-            study_id:
-                ID of the study.
-            state:
-                :class:`~optuna.trial.TrialState` to filter trials.
-
-        Returns:
-            Number of trials in the study.
-
-        Raises:
-            :exc:`KeyError`:
-                If no study with the matching ``study_id`` exists.
-        """
         return self.client.sync(
             self.client.scheduler.optuna_get_n_trials,
             study_id=study_id,
@@ -874,15 +585,8 @@ class DaskStorage(optuna.storages.BaseStorage):
             storage_name=self.name,
         )
 
+    @use_basestorage_doc
     def read_trials_from_remote_storage(self, study_id: int) -> None:
-        """Make an internal cache of trials up-to-date.
-        Args:
-            study_id:
-                ID of the study.
-        Raises:
-            :exc:`KeyError`:
-                If no study with the matching ``study_id`` exists.
-        """
         return self.client.sync(
             self.client.scheduler.optuna_read_trials_from_remote_storage,
             study_id=study_id,
