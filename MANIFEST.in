@@ -1,0 +1,13 @@
+recursive-include dask_optuna *.py
+
+include setup.py
+include setup.cfg
+include LICENSE
+include README.md
+include requirements.txt
+include MANIFEST.in
+include versioneer.py
+include dask_optuna/_version.py
+
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]
