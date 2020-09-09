@@ -32,6 +32,7 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
+    "sphinx.ext.intersphinx",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -53,6 +54,11 @@ html_theme = "dask_sphinx_theme"
 extlinks = {
     "issue": ("https://github.com/jrbourbeau/dask-optuna/issues/%s", "Issue #"),
     "pr": ("https://github.com/jrbourbeau/dask-optuna/pull/%s", "PR #"),
+}
+
+intersphinx_mapping = {
+    "optuna": ("https://optuna.readthedocs.io/en/stable/", None),
+    "distributed": ("https://distributed.dask.org/en/latest/", None),
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,
