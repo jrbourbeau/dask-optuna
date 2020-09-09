@@ -20,7 +20,7 @@ from dask.distributed import Client
 import coiled
 import dask_optuna
 
-optuna.logging.set_verbosity(optuna.logging.WARN)
+optuna.logging.set_verbosity(optuna.logging.WARNING)
 
 
 def objective(trial):
@@ -65,6 +65,7 @@ if __name__ == "__main__":
     with coiled.Cluster(n_workers=5, configuration="jrbourbeau/optuna") as cluster:
         with Client(cluster) as client:
             print(f"Dask dashboard is available at {client.dashboard_link}")
+            client.wait_for_workers(5)
 
             storage = dask_optuna.DaskStorage("sqlite:///coiled-example.db")
             study = optuna.create_study(storage=storage, direction="maximize")
