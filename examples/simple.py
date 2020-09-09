@@ -6,7 +6,6 @@ to run optimization trials on a Dask cluster in parallel.
 import optuna
 import joblib
 from dask.distributed import Client
-
 import dask_optuna
 
 optuna.logging.set_verbosity(optuna.logging.WARN)
