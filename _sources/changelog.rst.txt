@@ -1,6 +1,13 @@
 Release Notes
 =============
 
+0.0.2 (2020-10-01)
+------------------
+
+- Fix ``StudyDirection`` serialization bug (:pr:`16`) `James Bourbeau`_
+- Wait for coiled cluster workers to arrive (:pr:`14`) `James Bourbeau`_
+
+
 0.0.1 (2020-09-09)
 ------------------
 
