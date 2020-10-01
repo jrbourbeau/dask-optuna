@@ -70,6 +70,7 @@ def test_get_base_storage(storage_specifier):
 @pytest.mark.parametrize("direction", ["maximize", "minimize"])
 def test_study_direction_best_value(processes, direction):
     # Regression test for https://github.com/jrbourbeau/dask-optuna/issues/15
+    pytest.importorskip("pandas")
     with Client(processes=processes):
         dask_storage = dask_optuna.DaskStorage()
         study = optuna.create_study(storage=dask_storage, direction=direction)
