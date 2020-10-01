@@ -21,6 +21,8 @@ from .serialize import (
     deserialize_frozentrial,
     serialize_studysummary,
     deserialize_studysummary,
+    serialize_studydirection,
+    deserialize_studydirection,
 )
 
 
@@ -99,7 +101,7 @@ class OptunaSchedulerExtension:
     ) -> None:
         return self.get_storage(storage_name).set_study_direction(
             study_id=study_id,
-            direction=getattr(study.StudyDirection, direction),
+            direction=deserialize_studydirection(direction),
         )
 
     def get_study_id_from_name(
@@ -124,7 +126,10 @@ class OptunaSchedulerExtension:
     def get_study_direction(
         self, comm, study_id: int, storage_name: str = None
     ) -> study.StudyDirection:
-        return self.get_storage(storage_name).get_study_direction(study_id=study_id)
+        direction = self.get_storage(storage_name).get_study_direction(
+            study_id=study_id
+        )
+        return serialize_studydirection(direction)
 
     def get_study_user_attrs(
         self, comm, study_id: int, storage_name: str = None
@@ -415,11 +420,12 @@ class DaskStorage(optuna.storages.BaseStorage):
 
     @use_basestorage_doc
     def get_study_direction(self, study_id: int) -> study.StudyDirection:
-        return self.client.sync(
+        direction = self.client.sync(
             self.client.scheduler.optuna_get_study_direction,
             study_id=study_id,
             storage_name=self.name,
         )
+        return deserialize_studydirection(direction)
 
     @use_basestorage_doc
     def get_study_user_attrs(self, study_id: int) -> Dict[str, Any]:
