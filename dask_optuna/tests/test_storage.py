@@ -1,6 +1,7 @@
 import pytest
 import optuna
 import joblib
+import numpy as np
 from distributed import Client
 from distributed.utils_test import gen_cluster
 
@@ -63,3 +64,25 @@ def test_get_base_storage(storage_specifier):
             storage = dask_storage.get_base_storage()
             expected_type = type(optuna.storages.get_storage(url))
             assert isinstance(storage, expected_type)
+
+
+@pytest.mark.parametrize("processes", [True, False])
+@pytest.mark.parametrize("direction", ["maximize", "minimize"])
+def test_study_direction_best_value(processes, direction):
+    # Regression test for https://github.com/jrbourbeau/dask-optuna/issues/15
+    pytest.importorskip("pandas")
+    with Client(processes=processes):
+        dask_storage = dask_optuna.DaskStorage()
+        study = optuna.create_study(storage=dask_storage, direction=direction)
+        with joblib.parallel_backend("dask"):
+            study.optimize(objective, n_trials=10, n_jobs=-1)
+
+        # Ensure that study.best_value matches up with the expected value from
+        # the trials DataFrame
+        trials_value = study.trials_dataframe()["value"]
+        if direction == "maximize":
+            expected = trials_value.max()
+        else:
+            expected = trials_value.min()
+
+        np.testing.assert_allclose(expected, study.best_value)

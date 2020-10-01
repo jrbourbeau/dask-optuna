@@ -66,3 +66,11 @@ def deserialize_studysummary(data):
     data["datetime_start"] = deserialize_datetime(data["datetime_start"])
     summary = StudySummary(**data)
     return summary
+
+
+def serialize_studydirection(direction):
+    return direction.name
+
+
+def deserialize_studydirection(data):
+    return getattr(StudyDirection, data)
